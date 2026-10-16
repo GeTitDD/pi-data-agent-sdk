@@ -58,3 +58,19 @@ data-demo/
 ## 关键决策溯源
 
 采纳 `postgres-mcp`（护栏设计）、`WrenAI`（语义层思路）、`shopkeeper-agent`（流水线骨架、值域检索）、`vanna`（结果分离）、`DB-GPT`（失败分类）、`SQLBot`（表名校验）**的设计**，同时修正其缺陷（`fetchall` 无上限、`BEGIN...READ ONLY` 在 psycopg3 下可能失效、`execute_param_query` 旁路）。详见 `docs/analysis/`。
+
+## 发布（注意：本环境的 `git push` 不可用）
+
+本环境 **`git push` 无法连通 `github.com:443`**（WSL git 的 gnutls 报 TLS 错误；Windows git 亦连接失败），但 **`api.github.com` 可达**。因此推送改走 **Git Data API**：
+
+```bash
+GH_TOKEN=$(gh auth token --user GeTitDD) node tools/publish.mjs
+```
+
+`tools/publish.mjs` 按本地 `HEAD` 重建 blob/tree/commit 并强制更新远端 ref；在元数据（tree、含末尾换行的 message、带时区偏移的 author/committer）完全一致时，**远端提交 sha 与本地 HEAD 相同**（已实测：`cfefb986`）。
+
+其他环境约束（实测结论，供排查参考）：
+
+- WSL 的 `~/.gitconfig` 有 `url."https://gitclone.com/github.com/".insteadOf = https://github.com/` 改写 → 会把 GitHub 请求劫持到不可用的镜像。本仓库所有 git 命令均以 `GIT_CONFIG_GLOBAL=/dev/null` 运行以绕开它。
+- 仓库目录属主与 WSL 用户不同 → 需 `-c safe.directory=<repo>`。
+- 调用 `cmd.exe` 会破坏同一脚本后续的 stdout → Windows 侧命令必须放在独立的一次调用里。
