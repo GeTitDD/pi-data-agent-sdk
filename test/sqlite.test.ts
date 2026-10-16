@@ -47,9 +47,9 @@ test("NULL 可正常返回", async () => {
 	assert.equal(r.rows[0]?.note, null);
 });
 
-test("写操作被拒（经 runner 护栏）", async () => {
+test("写操作被拒绝，且状态分类为 denied（而非 error）", async () => {
 	const r = await connector.execute("CREATE TABLE x(a int)", limits);
-	assert.notEqual(r.status, "ok");
+	assert.equal(r.status, "denied");
 	assert.equal(r.rows.length, 0);
 });
 

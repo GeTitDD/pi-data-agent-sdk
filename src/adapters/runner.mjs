@@ -19,8 +19,11 @@ import { DatabaseSync } from "node:sqlite";
 
 const MAX_DEFAULT = 200;
 const WRITE_KEYWORDS =
-	/\b(insert|update|delete|replace|create|drop|alter|attach|detach|vacuum|reindex|truncate|grant|revoke|begin|commit|rollback|savepoint|pragma)\b/i;
+	/\b(insert|update|delete|replace|create|drop|alter|attach|detach|vacuum|reindex|truncate|grant|revoke|begin|commit|rollback|savepoint|pragma|analyze)\b/i;
 const ALLOWED_STARTS = new Set(["SELECT", "WITH", "VALUES", "EXPLAIN"]);
+
+/** 被护栏拒绝（而非执行出错）——用于 S2 的失败分类 */
+class DeniedError extends Error {}
 
 /** Replace comments and string/identifier literals with spaces (keeps structure). */
 function blankLiterals(sql) {
@@ -69,15 +72,15 @@ function blankLiterals(sql) {
 /** Enforce: exactly one statement, read-only, no write/DDL keywords. */
 function assertReadOnly(sql) {
 	const blanked = blankLiterals(sql).trim();
+	if (!blanked) throw new DeniedError("Empty statement.");
 	const body = blanked.endsWith(";") ? blanked.slice(0, -1) : blanked;
-	if (body.includes(";")) throw new Error("Only a single SQL statement is allowed.");
+	if (body.includes(";")) throw new DeniedError("Only a single SQL statement is allowed.");
 	const first = (blanked.match(/[A-Za-z_]+/) || [""])[0].toUpperCase();
 	if (!ALLOWED_STARTS.has(first)) {
-		throw new Error(`Read-only mode: statement must start with SELECT, WITH, VALUES or EXPLAIN (got "${first || "?"}").`);
+		throw new DeniedError(`Read-only mode: statement must start with SELECT, WITH, VALUES or EXPLAIN (got "${first || "?"}").`);
 	}
-	if (WRITE_KEYWORDS.test(blanked)) {
-		throw new Error("Read-only mode: write/DDL keywords are not allowed.");
-	}
+	const hit = blanked.match(WRITE_KEYWORDS);
+	if (hit) throw new DeniedError(`Read-only mode: keyword "${hit[0]}" is not allowed.`);
 }
 
 function normalizeValue(value) {
@@ -191,13 +194,15 @@ let job;
 try {
 	job = JSON.parse(readFileSync(0, "utf8"));
 } catch (error) {
-	process.stdout.write(JSON.stringify({ ok: false, error: `Invalid job JSON: ${error.message}` }));
+	process.stdout.write(JSON.stringify({ ok: false, status: "error", error: `Invalid job JSON: ${error.message}` }));
 	process.exit(0);
 }
 
 try {
 	const result = run(job);
-	process.stdout.write(JSON.stringify({ ok: true, ...result }));
+	process.stdout.write(JSON.stringify({ ok: true, status: "ok", ...result }));
 } catch (error) {
-	process.stdout.write(JSON.stringify({ ok: false, error: error instanceof Error ? error.message : String(error) }));
+	// 失败分类：护栏拒绝 vs 执行出错
+	const status = error instanceof DeniedError ? "denied" : "error";
+	process.stdout.write(JSON.stringify({ ok: false, status, error: error instanceof Error ? error.message : String(error) }));
 }

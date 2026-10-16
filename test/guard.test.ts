@@ -71,3 +71,44 @@ test("四种允许的语句族都通过", () => {
 		assert.equal(check(sql).allowed, true, `应允许: ${sql}`);
 	}
 });
+
+// ---- S2 新增规则 ----
+
+test("ANALYZE 被拒（EXPLAIN ANALYZE 会真的执行语句）", () => {
+	const r = check("EXPLAIN ANALYZE SELECT 1");
+	assert.equal(r.allowed, false);
+	assert.equal(r.kind, "banned_keyword");
+	assert.match(r.reason ?? "", /analyze/i);
+});
+
+test("未知表被拒（不信任模型给的表名）", () => {
+	const r = check("SELECT * FROM secret_table");
+	assert.equal(r.allowed, false);
+	assert.equal(r.kind, "unknown_table");
+});
+
+test("已知表放行", () => {
+	assert.equal(check("SELECT id FROM orders").allowed, true);
+	assert.equal(check("SELECT o.id FROM orders o JOIN customers c ON c.id = o.id").allowed, true);
+});
+
+test("带引号的表名也能识别", () => {
+	assert.equal(check('SELECT * FROM "orders"').allowed, true);
+	assert.equal(check("SELECT * FROM [orders]").allowed, true);
+	assert.equal(check("SELECT * FROM `orders`").allowed, true);
+});
+
+test("字符串/注释里的 FROM 不会误抽出表名", () => {
+	assert.equal(check("SELECT 'FROM secret_table' AS s").allowed, true);
+	assert.equal(check("SELECT 1 AS s -- FROM secret_table").allowed, true);
+});
+
+test("CTE 名与派生表别名不算未知表", () => {
+	assert.equal(check("WITH x AS (SELECT 1) SELECT * FROM x").allowed, true);
+	assert.equal(check("SELECT * FROM (SELECT 1) t").allowed, true);
+	assert.equal(check("SELECT * FROM orders WHERE id IN (SELECT id FROM customers)").allowed, true);
+});
+
+test("schema 限定名取最后一段", () => {
+	assert.equal(check("SELECT * FROM main.orders").allowed, true);
+});

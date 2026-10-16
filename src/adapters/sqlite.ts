@@ -17,6 +17,8 @@ import type { Connector } from "../ports.ts";
 
 interface RawResult {
 	ok: boolean;
+	/** 失败分类（S2 协议）：ok / denied / error */
+	status?: "ok" | "denied" | "error";
 	error?: string;
 	/** 由本适配器标注：子进程被超时杀掉 */
 	timedOut?: boolean;
@@ -79,7 +81,9 @@ export function createSqliteConnector(options: { dbPath: string; engine?: string
 				return { status: "timeout", columns: [], rows: [], truncated: false, elapsedMs: elapsed, error: raw.error };
 			}
 			if (!raw.ok) {
-				return { status: "error", columns: [], rows: [], truncated: false, elapsedMs: elapsed, error: raw.error };
+				// 区分「护栏拒绝」与「执行出错」（runner 在 S2 已经分开上报）
+				const status = raw.status === "denied" ? "denied" : "error";
+				return { status, columns: [], rows: [], truncated: false, elapsedMs: elapsed, error: raw.error };
 			}
 			return {
 				status: "ok",
