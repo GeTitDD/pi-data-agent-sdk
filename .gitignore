@@ -1,0 +1,12 @@
+# 第三方参考项目（676MB，仅本地学习用）
+reference-projects/
+# 依赖与构建产物
+node_modules/
+dist/
+# 生成物（可由 seed.mjs 重建）
+*.db
+*.db-journal
+*.log
+# 编辑器/系统
+.DS_Store
+Thumbs.db
