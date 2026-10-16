@@ -168,6 +168,21 @@ function run(job) {
 		return { matches };
 	}
 
+	if (job.kind === "values") {
+		// 值域对齐：取某列的真实取值样例（distinct + 非空），供模型写 WHERE 时对齐
+		const db = openReadOnly(job.dbPath);
+		const q = (name) => `"${String(name).replace(/"/g, '""')}"`;
+		const limit = Number.isFinite(job.limit) && job.limit > 0 ? Math.floor(job.limit) : 8;
+		const rows = db
+			.prepare(
+				`select distinct ${q(job.column)} as v from ${q(job.table)} where ${q(job.column)} is not null limit ?`,
+			)
+			.all(limit)
+			.map((r) => normalizeValue(r.v));
+		db.close();
+		return { values: rows };
+	}
+
 	if (job.kind === "query") {
 		assertReadOnly(job.sql);
 		const maxRows = Number.isFinite(job.maxRows) && job.maxRows > 0 ? Math.floor(job.maxRows) : MAX_DEFAULT;

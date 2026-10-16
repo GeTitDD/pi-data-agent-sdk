@@ -3,17 +3,21 @@
  *
  * 迁移来源：legacy/data-copilot-index.ts 的 runJob()（L184–216，spawn + kill 超时）。
  *
- * 设计要点（借自 postgres-mcp 的两个教训并做了修正）：
- *  - 只读**由构造保证**：runner 以 `readOnly: true` 句柄打开库（不再依赖 `BEGIN ... READ ONLY`）。
+ * 设计要点（借自 postgres-mcp 的三个教训并做了修正）：
+ *  - 只读**由构造保证**：runner 以 `readOnly: true` 句柄打开库（不依赖 `BEGIN ... READ ONLY`）。
  *  - 超时用**子进程 + kill**（Node 无 asyncio；`node:sqlite` 是同步 API，不隔离会阻塞主进程）。
  *  - 行数**逐行截断**（不是 `fetchall()`）。
+ *
+ * 两条通道（M1 新增 introspect）：
+ *  - `execute(sql)`   —— 模型生成的 SQL，调用方**必须先过 Guard**
+ *  - `introspect(job)` —— 平台内置自省，入参为**闭集 union**，结构上无法传入任意 SQL
  */
 
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-import type { ExecResult, Row } from "../atoms.ts";
-import type { Connector } from "../ports.ts";
+import type { ExecResult, Row, Value } from "../atoms.ts";
+import type { Connector, IntrospectJob, IntrospectResult } from "../ports.ts";
 
 interface RawResult {
 	ok: boolean;
@@ -22,11 +26,19 @@ interface RawResult {
 	error?: string;
 	/** 由本适配器标注：子进程被超时杀掉 */
 	timedOut?: boolean;
+	// query
 	columns?: string[];
 	rows?: Row[];
 	rowCount?: number;
 	truncated?: boolean;
 	elapsedMs?: number;
+	// introspect
+	tables?: Array<Record<string, unknown>>;
+	table?: string;
+	indexes?: Array<Record<string, unknown>>;
+	foreignKeys?: Array<Record<string, unknown>>;
+	matches?: Array<Record<string, unknown>>;
+	values?: unknown[];
 }
 
 const runnerPath = (): string => fileURLToPath(new URL("./runner.mjs", import.meta.url));
@@ -48,7 +60,7 @@ function runJob(job: Record<string, unknown>, timeoutMs: number): Promise<RawRes
 
 		const timer = setTimeout(() => {
 			child.kill();
-			finish({ ok: false, timedOut: true, error: `Query timed out after ${timeoutMs}ms and was killed.` });
+			finish({ ok: false, timedOut: true, error: `Job timed out after ${timeoutMs}ms and was killed.` });
 		}, timeoutMs);
 
 		child.stdout.on("data", (chunk) => (stdout += chunk));
@@ -68,7 +80,25 @@ function runJob(job: Record<string, unknown>, timeoutMs: number): Promise<RawRes
 	});
 }
 
-export function createSqliteConnector(options: { dbPath: string; engine?: string }): Connector {
+/** 把失败分类统一成 ExecStatus */
+function failureStatus(raw: RawResult): ExecResult["status"] {
+	if (raw.timedOut) return "timeout";
+	return raw.status === "denied" ? "denied" : "error";
+}
+
+const str = (v: unknown): string | undefined => (typeof v === "string" ? v : v == null ? undefined : String(v));
+const bool = (v: unknown): boolean => v === 1 || v === true || v === "1";
+
+export interface SqliteConnectorOptions {
+	dbPath: string;
+	engine?: string;
+	/** introspect 的默认超时（execute 用调用方传入的 limits.timeoutMs） */
+	introspectTimeoutMs?: number;
+}
+
+export function createSqliteConnector(options: SqliteConnectorOptions): Connector {
+	const introspectTimeoutMs = options.introspectTimeoutMs ?? 20_000;
+
 	return {
 		engine: options.engine ?? "sqlite",
 
@@ -77,13 +107,8 @@ export function createSqliteConnector(options: { dbPath: string; engine?: string
 			const raw = await runJob({ kind: "query", dbPath: options.dbPath, sql, maxRows: o.maxRows }, o.timeoutMs);
 			const elapsed = raw.elapsedMs ?? Date.now() - started;
 
-			if (raw.timedOut) {
-				return { status: "timeout", columns: [], rows: [], truncated: false, elapsedMs: elapsed, error: raw.error };
-			}
 			if (!raw.ok) {
-				// 区分「护栏拒绝」与「执行出错」（runner 在 S2 已经分开上报）
-				const status = raw.status === "denied" ? "denied" : "error";
-				return { status, columns: [], rows: [], truncated: false, elapsedMs: elapsed, error: raw.error };
+				return { status: failureStatus(raw), columns: [], rows: [], truncated: false, elapsedMs: elapsed, error: raw.error };
 			}
 			return {
 				status: "ok",
@@ -94,8 +119,60 @@ export function createSqliteConnector(options: { dbPath: string; engine?: string
 			};
 		},
 
+		async introspect(job: IntrospectJob, o?: { timeoutMs?: number }): Promise<IntrospectResult> {
+			const raw = await runJob({ ...job, dbPath: options.dbPath }, o?.timeoutMs ?? introspectTimeoutMs);
+			if (!raw.ok) {
+				const status = failureStatus(raw);
+				return { status: status === "ok" ? "error" : status, error: raw.error };
+			}
+
+			switch (job.kind) {
+				case "tables":
+					return {
+						status: "ok",
+						tables: (raw.tables ?? []).map((t) => ({
+							name: String(t.name),
+							type: str(t.type),
+							rowCount: typeof t.rowCount === "number" ? t.rowCount : null,
+						})),
+					};
+
+				case "describe":
+					return {
+						status: "ok",
+						table: raw.table ?? job.table,
+						columns: (raw.columns ?? []).map((c) => ({
+							name: String(c.name),
+							type: str(c.type),
+							notNull: bool(c.not_null),
+							pk: bool(c.pk),
+							default: c.dflt_value,
+						})),
+						indexes: (raw.indexes ?? []).map((i) => ({ name: String(i.name), unique: bool(i.is_unique) })),
+						foreignKeys: (raw.foreignKeys ?? []).map((f) => ({
+							fromColumn: str(f.from_column),
+							refTable: str(f.ref_table),
+							toColumn: str(f.to_column),
+						})),
+					};
+
+				case "search":
+					return {
+						status: "ok",
+						matches: (raw.matches ?? []).map((m) => ({
+							tableName: String(m.table_name),
+							columnName: String(m.column_name),
+							dataType: str(m.data_type),
+						})),
+					};
+
+				case "values":
+					return { status: "ok", values: (raw.values ?? []) as Value[] };
+			}
+		},
+
 		async close(): Promise<void> {
-			// 无长连接：每次 execute 起一个短命子进程，无需释放。
+			// 无长连接：每次 execute/introspect 起一个短命子进程，无需释放。
 		},
 	};
 }

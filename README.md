@@ -48,11 +48,12 @@ data-demo/
 | **S0** | 版本控制 + 远端仓库 | 基线提交可 diff / 可回滚 | ✅ 完成 |
 | **S1** | atoms + ports + guard + adapters/sqlite（**无 LLM**） | 17 项契约测试全绿 | ✅ 完成 |
 | **S2** | guard 补 ANALYZE 禁项 + 表名白名单；runner 加 `status` 协议 | 24 项契约测试全绿 | ✅ 完成 |
-| **M1** | catalog + metrics + cells + ask + Stub Model | 离线确定性跑通全链 | 待开始 |
+| **M1** | catalog + metrics + cells + ask + Stub Model | 离线确定性跑通全链 | ✅ 完成（39 项测试）|
 | **M2** | 真模型 + HITL 澄清 + Pi 扩展面 | 真实问题可答 | 待开始 |
 
-> **M0（L0/L1）已冻结**：`atoms.ts` / `ports.ts` / `guard.ts` / `adapters/sqlite.ts` 的接口与行为由 24 项契约测试固定。
-> 运行测试：`node --test test/guard.test.ts test/sqlite.test.ts`
+> **M0（A0/A1）与 M1（A2）均已冻结**：接口与行为由 **39 项契约测试**固定（M0 24 + M1 15）。
+> 运行测试：`node --test test/guard.test.ts test/sqlite.test.ts test/m1.test.ts`
+> 设计说明：`docs/M1-DESIGN.md` · 方法论：`docs/METHODOLOGY.md` · 宿主解剖：`docs/CASE-PI.md`
 
 ## 设计要点
 
