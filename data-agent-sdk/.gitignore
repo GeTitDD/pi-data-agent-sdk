@@ -1,0 +1,4 @@
+# 本地研究材料：留在磁盘上，不进版本库（用户要求不涉及 git）
+docs/CASE-PI.md
+docs/METHODOLOGY.md
+docs/analysis/

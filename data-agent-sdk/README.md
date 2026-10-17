@@ -63,10 +63,16 @@ src/
     runner.mjs         唯一碰 DB 的进程：只读句柄 + 行限 + 单条 JSON 进出
 test/                  39 项契约测试（guard 17 / sqlite 6 / m1 15）
 demo/                  seed.mjs 重建 demo.db；test-runner.mjs / test-describe.mjs 是探针，探的是仓库根 legacy/ 迁移基线的 runner（非本包），且写死了 Windows 路径
-docs/M1-DESIGN.md      A2 设计说明（先读这个）
+docs/
+  M1-DESIGN.md         A2 设计说明（先读这个）
+  METHODOLOGY.md       方法论：信任阶梯、不变量分级（本地，不入库）
+  CASE-PI.md           Pi 宿主解剖：工具/命令/事件面（本地，不入库）
+  analysis/            9 个开源 Data Agent 项目的研读笔记（本地，不入库）
 SDK-SPEC-v1.md         冻结版规格：接口、不变量、里程碑
 M0-MIGRATION-PLAN.md   M0 迁移方案（迁移基线在仓库根 legacy/）
 ```
+
+`docs/` 下三份研究材料由本包 `.gitignore` 排除，只存在本地。它们的来源引用写成 `reference-projects/...`，相对仓库根。
 
 ## 两条通道
 
@@ -84,4 +90,4 @@ M0-MIGRATION-PLAN.md   M0 迁移方案（迁移基线在仓库根 legacy/）
 
 ## 相关文档
 
-设计规格与里程碑在 `SDK-SPEC-v1.md`。方法论、宿主解剖、参考项目研读笔记在仓库根的 `docs/`。迁移基线（旧 Pi 扩展）在仓库根的 `legacy/`。
+设计规格与里程碑在 `SDK-SPEC-v1.md`。方法论、宿主解剖、参考项目研读笔记在 `docs/`。迁移基线（旧 Pi 扩展）在仓库根的 `legacy/`。

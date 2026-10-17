@@ -9,24 +9,26 @@ data-agent-sdk/            只读数据分析 SDK（独立包，自述见包内 
   src/                     L0 atoms → L1 ports → L1 能力 → L2 cells/ask
   test/                    39 项契约测试（M0 24 + M1 15）
   demo/                    seed.mjs 重建 demo.db
-  docs/M1-DESIGN.md        A2 设计说明
+  docs/
+    M1-DESIGN.md           A2 设计说明（入库）
+    METHODOLOGY.md         方法论：信任阶梯、不变量分级（本地，不入库）
+    CASE-PI.md             Pi 宿主解剖（工具/命令/事件面）（本地，不入库）
+    analysis/              9 个开源 Data Agent 项目的研读笔记（本地，不入库）
+      MANIFEST.md            参考项目清单与分层对照
+      STUDY-NOTES.md         逐层学习笔记（L0→L5）
+      ANNOTATED-safe_sql.md  postgres-mcp 护栏全文逐段注解
+      ANALYSIS-safe_sql-logic.md   护栏关键逻辑（源码+解析）
+      ANALYSIS-sql_driver-logic.md 驱动关键逻辑（源码+解析）
   SDK-SPEC-v1.md           冻结版规格
   M0-MIGRATION-PLAN.md     M0 迁移方案
-docs/
-  METHODOLOGY.md           方法论：信任阶梯、不变量分级
-  CASE-PI.md               Pi 宿主解剖（工具/命令/事件面）
-  analysis/                9 个开源 Data Agent 项目的研读笔记
-    MANIFEST.md              参考项目清单与分层对照
-    STUDY-NOTES.md           逐层学习笔记（L0→L5）
-    ANNOTATED-safe_sql.md    postgres-mcp 护栏全文逐段注解
-    ANALYSIS-safe_sql-logic.md   护栏关键逻辑（源码+解析）
-    ANALYSIS-sql_driver-logic.md 驱动关键逻辑（源码+解析）
 legacy/
   data-copilot-index.ts    迁移基线：旧 Pi 扩展（含工具/命令/事件）
   data-copilot-runner.mjs  迁移基线：只读子进程 runner（护栏+行限+超时）
 tools/
   publish.mjs              用 GitHub Git Data API 代替 git push
 ```
+
+标了"本地，不入库"的三份研究材料由 `data-agent-sdk/.gitignore` 排除，只存在于本地磁盘。它们内部的 `reference-projects/...` 写法相对仓库根。
 
 `reference-projects/` 存放 9 个第三方开源项目（676 MB），**仅本地学习用，已 gitignore**。`pstack_learning/`、`rea/`、`architect-arena/` 等为并行的学习与练习目录，与 SDK 无关。
 
@@ -67,7 +69,7 @@ npm run typecheck  # tsc --noEmit（strict）
 
 ## 关键决策溯源
 
-采纳 `postgres-mcp`（护栏设计）、`WrenAI`（语义层思路）、`shopkeeper-agent`（流水线骨架、值域检索）、`vanna`（结果分离）、`DB-GPT`（失败分类）、`SQLBot`（表名校验）**的设计**，同时修正其缺陷（`fetchall` 无上限、`BEGIN...READ ONLY` 在 psycopg3 下可能失效、`execute_param_query` 旁路）。详见 `docs/analysis/`。
+采纳 `postgres-mcp`（护栏设计）、`WrenAI`（语义层思路）、`shopkeeper-agent`（流水线骨架、值域检索）、`vanna`（结果分离）、`DB-GPT`（失败分类）、`SQLBot`（表名校验）**的设计**，同时修正其缺陷（`fetchall` 无上限、`BEGIN...READ ONLY` 在 psycopg3 下可能失效、`execute_param_query` 旁路）。详见 `data-agent-sdk/docs/analysis/`（本地，不入库）。
 
 ## 发布（本环境的 `git push` 不可用）
 
