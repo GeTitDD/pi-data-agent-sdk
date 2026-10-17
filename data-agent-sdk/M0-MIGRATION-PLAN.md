@@ -2,6 +2,8 @@
 
 **前提**：我们**已经有**一份能跑的实现（Pi 扩展 `data-copilot`，777 行）。M0 的目标不是"从零写 SDK"，而是**把现有代码按层切开、补齐 3 处缺口、把测试扩到 15 项**。
 
+> 本节各表中裸写的 `runner.mjs`、`index.ts` 指仓库根的 `legacy/data-copilot-runner.mjs` 与 `legacy/data-copilot-index.ts`（SDK 包之外的迁移基线）。表内 `src/`、`test/`、`demo/` 均相对本包根目录。
+
 ---
 
 ## 一、资产盘点：现有代码已经实现了 M0 的什么
@@ -19,7 +21,7 @@
 | `readNotes/writeNotes` + `withFileMutationQueue` | `index.ts` L150–170 | 原子写 + 文件锁 | `metrics.ts` |
 | `formatTable/formatCell` | `index.ts` L222–239 | 等宽表格渲染 | `cells.ts` |
 | 4 个工具 + 1 个命令 + 1 个事件 | `index.ts` L306–575 | Pi 侧完整接口面 | `pi-tools.ts`（薄适配层） |
-| `seed.mjs` + `demo.db` | `data-demo/` | 确定性测试数据（300 客户/1200 订单/2974 明细/106 退款） | 测试夹具 |
+| `seed.mjs` + `demo.db` | `demo/` | 确定性测试数据（300 客户/1200 订单/2974 明细/106 退款） | 测试夹具 |
 
 **结论**：现有代码覆盖了 M0 约 **70%**。真正"缺"的只有三处（见第四节）。
 

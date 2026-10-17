@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 
 const RUNNER = "C:/Users/Administrator/.pi/agent/extensions/data-copilot/runner.mjs";
-const DB = "D:/pi_project/data-demo/demo.db";
+const DB = "D:/pi_project/data-agent-sdk/demo/demo.db";
 
 function job(payload, timeoutMs = 15000) {
 	return new Promise((resolve) => {

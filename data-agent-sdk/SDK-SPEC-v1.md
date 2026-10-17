@@ -253,7 +253,7 @@ ask(question, deps)
 
 1. `metrics.json` 存放在 agent 目录还是项目 `.pi/`（建议：两者都支持，项目覆盖全局）。
 2. `Model` 端口是否直接复用 Pi 的当前模型（建议：v1 先接受注入，Pi 侧传当前模型）。
-3. `eval/questions.jsonl` 的题目来源（建议：先用我们的 `data-demo/demo.db` 出 20 题）。
+3. `eval/questions.jsonl` 的题目来源（建议：先用我们的 `demo/demo.db` 出 20 题）。
 
 ---
 

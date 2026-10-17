@@ -1,0 +1,24 @@
+{
+  "name": "pi-data-agent-sdk",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Read-only natural-language SQL agent SDK. Lexical guard, EXPLAIN dry-run, isolated read-only runner, deterministic answer rendering.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./src/*": "./src/*"
+  },
+  "scripts": {
+    "test": "node --test test/guard.test.ts test/sqlite.test.ts test/m1.test.ts",
+    "seed": "node demo/seed.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  }
+}
