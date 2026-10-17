@@ -71,9 +71,29 @@ npm run typecheck  # tsc --noEmit（strict）
 
 采纳 `postgres-mcp`（护栏设计）、`WrenAI`（语义层思路）、`shopkeeper-agent`（流水线骨架、值域检索）、`vanna`（结果分离）、`DB-GPT`（失败分类）、`SQLBot`（表名校验）**的设计**，同时修正其缺陷（`fetchall` 无上限、`BEGIN...READ ONLY` 在 psycopg3 下可能失效、`execute_param_query` 旁路）。详见 `data-agent-sdk/docs/analysis/`（本地，不入库）。
 
-## 发布（本环境的 `git push` 不可用）
+## 让其它 agent 提 issue
 
-本环境 **`git push` 无法连通 `github.com:443`**（WSL git 的 gnutls 报 TLS 错误；Windows git 亦连接失败），但 **`api.github.com` 可达**。因此推送改走 **Git Data API**：
+`github.com:443` 在本机器不通（WSL 与 Windows 都是 TCP 超时），`api.github.com` 通。所以提 issue 走 REST API，不走网页，也不走 `gh issue create`。
+
+```bash
+node tools/new-issue.mjs --title "..." --body-file /tmp/body.md --label bug
+node tools/new-issue.mjs --title "..." --body "..." --dry-run   # 只看 payload，不发
+```
+
+脚本只依赖 node，任何 agent runtime 都能调。token 按以下顺序取：`GITHUB_TOKEN`、`GH_TOKEN`、`~/.ghtok`（权限 600）。仓库自动从 `origin` 解析，也可用 `--repo owner/name` 指定。
+
+`.github/ISSUE_TEMPLATE/agent.md` 是给 agent 用的模板，要求带实测输出与可复现命令。
+
+其它两条通路，按需选：
+
+- **MCP**。`~/.pi/agent/mcp.json` 里的 `github` server 目前带 `--read-only`，只能读。去掉这个参数并把 `GITHUB_PERSONAL_ACCESS_TOKEN` 设成有 `repo` 权限的 token，MCP 客户端（pi、Claude、Codex）就能直接建 issue。代价是同一个 server 也服务其它仓库，写权限对 token 能看到的所有仓库生效。
+- **WSL 的 gh**。已安装（`/usr/bin/gh`）但未登录。`gh auth login --with-token < ~/.ghtok` 之后可直接 `gh issue create`，它走 `api.github.com`，不受 443 阻断影响。
+
+## 发布
+
+推送走 SSH deploy key（仓库级写权限，key 在 `~/.ssh/id_ed25519_pi_data_agent_sdk`），`git push` 直接可用。https 路径仍不可用，原因与历史方案见下文。
+
+### 历史方案：Git Data API
 
 ```bash
 GH_TOKEN=$(gh auth token --user GeTitDD) node tools/publish.mjs
