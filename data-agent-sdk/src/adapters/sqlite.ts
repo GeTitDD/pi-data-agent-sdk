@@ -26,8 +26,9 @@ interface RawResult {
 	error?: string;
 	/** 由本适配器标注：子进程被超时杀掉 */
 	timedOut?: boolean;
-	// query
-	columns?: string[];
+	// query：列名列表
+	// describe：pragma_table_info 的行对象
+	columns?: unknown;
 	rows?: Row[];
 	rowCount?: number;
 	truncated?: boolean;
@@ -88,6 +89,9 @@ function failureStatus(raw: RawResult): ExecResult["status"] {
 
 const str = (v: unknown): string | undefined => (typeof v === "string" ? v : v == null ? undefined : String(v));
 const bool = (v: unknown): boolean => v === 1 || v === true || v === "1";
+const stringList = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+const rowList = (v: unknown): Array<Record<string, unknown>> =>
+	Array.isArray(v) ? v.filter((x): x is Record<string, unknown> => typeof x === "object" && x !== null) : [];
 
 export interface SqliteConnectorOptions {
 	dbPath: string;
@@ -112,7 +116,7 @@ export function createSqliteConnector(options: SqliteConnectorOptions): Connecto
 			}
 			return {
 				status: "ok",
-				columns: raw.columns ?? [],
+				columns: stringList(raw.columns),
 				rows: raw.rows ?? [],
 				truncated: Boolean(raw.truncated),
 				elapsedMs: elapsed,
@@ -141,7 +145,7 @@ export function createSqliteConnector(options: SqliteConnectorOptions): Connecto
 					return {
 						status: "ok",
 						table: raw.table ?? job.table,
-						columns: (raw.columns ?? []).map((c) => ({
+						columns: rowList(raw.columns).map((c) => ({
 							name: String(c.name),
 							type: str(c.type),
 							notNull: bool(c.not_null),

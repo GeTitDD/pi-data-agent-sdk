@@ -5,7 +5,7 @@
  * 具体实现由最外层注入（端口—适配器 / 依赖倒置）。
  */
 
-import type { ExecResult, Value } from "./atoms.ts";
+import type { ExecResult, ExecStatus, Value } from "./atoms.ts";
 
 /** 唯一接触数据库的地方。 */
 export interface Connector {
