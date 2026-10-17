@@ -40,7 +40,7 @@ const readToken = () => {
 
 const repoFromOrigin = () => {
 	try {
-		const url = execFileSync("git", ["remote", "get-url", "origin"], { encoding: "utf8" }).trim();
+		const url = execFileSync("git", ["remote", "get-url", "origin"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
 		const m = url.match(/github\.com[/:]([^/]+)\/([^/.]+?)(?:\.git)?$/);
 		return m ? `${m[1]}/${m[2]}` : "";
 	} catch {
